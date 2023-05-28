@@ -26,8 +26,8 @@ struct node{
 
 
 static int insert_file(struct node* target, struct node* new_node){
-    puts("insert!");
-    printf("fa:%s son:%s\n",target->name,new_node->name);
+    // puts("insert!");
+    // printf("fa:%s son:%s\n",target->name,new_node->name);
     struct node* head = target->sons;
     if(head == NULL){
         target->sons = new_node;
@@ -58,7 +58,7 @@ static int insert_file(struct node* target, struct node* new_node){
 }
 
 static int remove_file(struct node* target, char* remove_name){
-    puts("rm!");
+    // puts("rm!");
     struct node* head = target->sons;
     if(head == NULL)return -1;
     if(strcmp(remove_name, head->name) == 0){
@@ -86,14 +86,15 @@ static int remove_file(struct node* target, char* remove_name){
 }
 
 static struct node* find_node(struct node* target, char* name){
-    puts("find node!");
-    printf("fa:%s name:%s\n",target->name,name);
+    // puts("find node!");
+    // printf("fa:%s name:%s\n",target->name,name);
     struct node* head = target->sons;
-    if(head == NULL)puts("???");
+    //if(head == NULL)puts("???");
     while(head != NULL){
-        printf("%s %s\n",head->name,name);
+        //printf("%s %s\n",head->name,name);
         if(strcmp(head->name,name) == 0)break;
         head = head->next;
     }
     return head;
 }
+

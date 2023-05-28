@@ -38,6 +38,19 @@ struct node* get_node(const char *path){
     return target_doc;
 }
 
+static int create_node(struct node* fa, char* name){
+    struct node* new_file = (struct node*)malloc(sizeof(struct node));
+    if(strlen(name) >= 255)return -EFBIG;
+    strcpy(new_file->name,name);
+    new_file->contents = "";
+    new_file->father = fa;
+    new_file->next = NULL;
+    new_file->prev = NULL;
+    new_file->sons = NULL;
+    new_file->type = file;
+    if(insert_file(fa,new_file) == 0)return 0;
+    else return -EEXIST;
+}
 
 static void *chat_init(struct fuse_conn_info *conn,
 			struct fuse_config *cfg)
@@ -108,15 +121,18 @@ static int chat_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int chat_read(const char *path, char *buf, size_t size, off_t offset,
                      struct fuse_file_info *fi)
 {
+    puts("read");
+
+    printf("size: %lu buf:%ld\n",size, sizeof(buf));
     struct node* target_file = get_node(path);
     if(target_file == NULL)return -ENOENT;
     if(target_file->type == directory)return -ENOENT;
 
     if(target_file->contents == NULL)return 0;
+    printf("name: %s\n",target_file->name);
 
-    printf("%s size: %ld offset: %ld\n",target_file->contents, size,offset);
+    //printf("%s size: %ld offset: %ld\n",target_file->contents, size,offset);
     int len = strlen(target_file->contents);
-    printf("%d\n",len);
     if(offset < len){
         if(offset + size > len)size = len - offset;
         memcpy(buf,target_file->contents + offset, size);
@@ -128,14 +144,29 @@ static int chat_read(const char *path, char *buf, size_t size, off_t offset,
 static int chat_write(const char *path, const char *buf, size_t size,
                       off_t offset, struct fuse_file_info *fi)
 {
+    puts("write");
+    printf("offset: %lu\n",offset);
     struct node* target_file = get_node(path);
     if(target_file == NULL || target_file->type == directory)return -ENOENT;
+    struct node* bro = find_node(root,target_file->name);
+    if(bro == NULL){
+        char* new_content = (char*)malloc(sizeof(char)*(size + offset + 1));
+        memcpy(new_content,target_file->contents,offset);
+        memcpy(new_content + offset,buf,size);
+        target_file->contents = new_content;
+    }
+    else{
+        struct node* bro_target_file = find_node(bro,target_file->father->name);
+        if(bro_target_file == NULL)create_node(bro,target_file->father->name);
+        bro_target_file = find_node(bro,target_file->father->name);
 
-    printf("%s size:%ld  offset: %ld\n",buf, size, offset);
-
-    target_file->contents = (char *)malloc(sizeof(char)*(size + offset + 1));
-    memcpy(target_file->contents + offset, buf, size);
-    printf("%s\n",target_file->contents);
+        offset = strlen(bro_target_file->contents);
+        char* new_content = (char*)malloc(sizeof(char)*(size + offset + 1));
+        memcpy(new_content,bro_target_file->contents,offset);
+        memcpy(new_content + offset,buf,size);
+        bro_target_file->contents = new_content;
+    }
+    
     return size;
 }
 
@@ -151,7 +182,6 @@ static int chat_makedir(const char *path, mode_t mode){
     printf("%s\n",new_path);
     struct node* fa = get_node(new_path);
     free(new_path);
-    printf("%s\n",fa->name);
 
     if(fa == NULL || fa->type == file)return -ENOENT;
     char doc_name[strlen(path) + 1];
@@ -199,18 +229,7 @@ static int chat_create(const char *path, mode_t mode,struct fuse_file_info *fi){
     strcpy(file_name,path);
     if(file_name[strlen(file_name)-1] == '/')return -EISDIR;
     char* name = strrchr(file_name,'/') + 1;
-    struct node* new_file = (struct node*)malloc(sizeof(struct node));
-    if(strlen(name) >= 255)return -EFBIG;
-    strcpy(new_file->name,name);
-    printf("%s\n",new_file->name);
-    new_file->contents = "";
-    new_file->father = fa;
-    new_file->next = NULL;
-    new_file->prev = NULL;
-    new_file->sons = NULL;
-    new_file->type = file;
-    if(insert_file(fa,new_file) == 0)return 0;
-    else return -EEXIST;
+    return create_node(fa,name);
 }
 
 static int chat_rmdir(const char *path){
